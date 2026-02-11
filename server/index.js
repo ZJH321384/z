@@ -21,7 +21,7 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -65,6 +65,8 @@ db.serialize(() => {
     question_count INTEGER,
     time_limit INTEGER,
     status TEXT DEFAULT 'pending',
+    grading_status TEXT DEFAULT 'pending',
+    exam_class TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
@@ -90,6 +92,7 @@ db.serialize(() => {
     exam_id TEXT,
     student_name TEXT,
     student_id TEXT,
+    class_name TEXT,
     question_id TEXT,
     answer TEXT,
     image_path TEXT,
@@ -145,6 +148,7 @@ db.serialize(() => {
     password TEXT,
     name TEXT,
     subject TEXT,
+    classes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
@@ -333,18 +337,34 @@ app.get('/api/exams/:id', (req, res) => {
 // 开始考试
 app.post('/api/exams/:id/start', (req, res) => {
   const examId = req.params.id;
-  
-  db.run(`UPDATE exams SET status = 'active' WHERE id = ?`, [examId], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    
-    // 通知所有客户端考试开始
-    io.emit('exam-started', { examId });
-    
-    res.json({ success: true, message: '考试已开始' });
-  });
+  const { examClass } = req.body;
+
+  // 如果有指定考试班级，则更新
+  if (examClass) {
+    db.run(`UPDATE exams SET status = 'active', exam_class = ? WHERE id = ?`, [examClass, examId], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 通知所有客户端考试开始
+      io.emit('exam-started', { examId, examClass });
+
+      res.json({ success: true, message: '考试已开始', examClass });
+    });
+  } else {
+    db.run(`UPDATE exams SET status = 'active' WHERE id = ?`, [examId], function(err) {
+      if (err) {
+        res.status(500).json({ error: err.message });
+        return;
+      }
+
+      // 通知所有客户端考试开始
+      io.emit('exam-started', { examId });
+
+      res.json({ success: true, message: '考试已开始' });
+    });
+  }
 });
 
 // 结束考试
@@ -612,14 +632,35 @@ function assignSubjectiveQuestionsToTeachers(examId) {
           
           console.log(`获取到 ${answers.length} 条学生答案`);
           
-          // 为每道主观题的每个答案创建任务并分配给教师
+          // 按题号分配教师：同一题号的所有学生答案分配给同一个教师
+          // 创建题号到教师的映射
+          const questionToTeacherMap = {};
+          subjectiveQuestions.forEach((sq, index) => {
+            // 使用轮询方式将题号分配给教师
+            const teacher = teachers[index % teachers.length];
+            const questionKey = sq.type === 'reading' && sq.subQuestionIndex !== undefined 
+              ? `${sq.id}_sub_${sq.subQuestionIndex}` 
+              : sq.id;
+            questionToTeacherMap[questionKey] = teacher;
+            console.log(`题号 ${questionKey} 分配给教师 ${teacher.id}`);
+          });
+          
+          // 为每道主观题的每个答案创建任务
           let taskIndex = 0;
           
           answers.forEach(answer => {
             const matchedQuestion = subjectiveQuestions.find(sq => sq.id === answer.question_id);
             if (matchedQuestion) {
-              // 轮询分配给教师
-              const teacher = teachers[taskIndex % teachers.length];
+              // 根据题号获取分配的教师
+              const questionKey = matchedQuestion.type === 'reading' && matchedQuestion.subQuestionIndex !== undefined 
+                ? `${matchedQuestion.id}_sub_${matchedQuestion.subQuestionIndex}` 
+                : matchedQuestion.id;
+              const teacher = questionToTeacherMap[questionKey];
+              
+              if (!teacher) {
+                console.error(`题号 ${questionKey} 没有分配教师`);
+                return;
+              }
               
               if (matchedQuestion.type === 'reading' && matchedQuestion.subQuestion) {
                 // 阅读理解题的简答题，创建单独的任务
@@ -634,7 +675,7 @@ function assignSubjectiveQuestionsToTeachers(examId) {
                     if (err) {
                       console.error('创建批改任务失败:', err);
                     } else {
-                      console.log(`创建任务 ${taskId}: 教师 ${teacher.id} 批改学生 ${answer.student_name} 的阅读理解简答题`);
+                      console.log(`创建任务 ${taskId}: 教师 ${teacher.id} 批改学生 ${answer.student_name} 的阅读理解简答题 (题号: ${questionKey})`);
                     }
                   }
                 );
@@ -650,7 +691,7 @@ function assignSubjectiveQuestionsToTeachers(examId) {
                     if (err) {
                       console.error('创建批改任务失败:', err);
                     } else {
-                      console.log(`创建任务 ${taskId}: 教师 ${teacher.id} 批改学生 ${answer.student_name} 的题目 ${answer.question_id}`);
+                      console.log(`创建任务 ${taskId}: 教师 ${teacher.id} 批改学生 ${answer.student_name} 的题目 ${answer.question_id} (题号: ${questionKey})`);
                     }
                   }
                 );
@@ -670,7 +711,7 @@ function assignSubjectiveQuestionsToTeachers(examId) {
 // 提交答案（客观题）
 app.post('/api/exams/:id/submit-answer', async (req, res) => {
   const examId = req.params.id;
-  const { studentName, studentId, questionId, answer } = req.body;
+  const { studentName, studentId, className, questionId, answer } = req.body;
   const answerId = uuidv4();
 
   try {
@@ -758,9 +799,9 @@ app.post('/api/exams/:id/submit-answer', async (req, res) => {
     // 填空题和主观题 isCorrect 和 score 保持 null，等待人工批改
 
     db.run(
-      `INSERT INTO student_answers (id, exam_id, student_name, student_id, question_id, answer, is_correct, score) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [answerId, examId, studentName, studentId, questionId, answer, isCorrect, score],
+      `INSERT INTO student_answers (id, exam_id, student_name, student_id, class_name, question_id, answer, is_correct, score) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [answerId, examId, studentName, studentId, className || '', questionId, answer, isCorrect, score],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -800,20 +841,64 @@ app.post('/api/exams/:id/submit-answer-image', upload.single('image'), (req, res
 app.get('/api/exams/:id/results', (req, res) => {
   const examId = req.params.id;
   
-  db.all(
-    `SELECT sa.*, q.content as question_content, q.answer as correct_answer, q.type, q.score as full_score, q.knowledge_point
-     FROM student_answers sa
-     JOIN questions q ON sa.question_id = q.id
-     WHERE sa.exam_id = ?`,
-    [examId],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(rows);
+  // 先检查阅卷状态
+  db.get(`SELECT grading_status FROM exams WHERE id = ?`, [examId], (err, exam) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
     }
-  );
+    
+    if (!exam) {
+      res.status(404).json({ error: '考试不存在' });
+      return;
+    }
+    
+    // 如果阅卷未完成，返回提示信息
+    if (exam.grading_status !== 'completed') {
+      // 获取阅卷进度
+      db.all(
+        `SELECT status FROM teacher_tasks WHERE exam_id = ?`,
+        [examId],
+        (err, tasks) => {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+          
+          const total = tasks.length;
+          const completed = tasks.filter(t => t.status === 'graded').length;
+          
+          res.status(403).json({
+            error: '阅卷工作正在进行中，请稍后再试',
+            gradingStatus: exam.grading_status,
+            progress: {
+              total,
+              completed,
+              pending: total - completed
+            },
+            message: `阅卷进度: ${completed}/${total}，请等待所有教师完成批改后再查看详情`
+          });
+        }
+      );
+      return;
+    }
+    
+    // 阅卷已完成，返回结果
+    db.all(
+      `SELECT sa.*, q.content as question_content, q.answer as correct_answer, q.type, q.score as full_score, q.knowledge_point
+       FROM student_answers sa
+       JOIN questions q ON sa.question_id = q.id
+       WHERE sa.exam_id = ?`,
+      [examId],
+      (err, rows) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        res.json(rows);
+      }
+    );
+  });
 });
 
 // 获取考试统计信息
@@ -857,6 +942,7 @@ app.get('/api/exams/:id/statistics', (req, res) => {
               studentScores[a.student_id] = {
                 name: a.student_name,
                 id: a.student_id,
+                className: a.class_name || '未填写',
                 totalScore: 0,
                 correctCount: 0,
                 totalAnswered: 0
@@ -917,10 +1003,49 @@ app.get('/api/exams/:id/statistics', (req, res) => {
               rank: index + 1,
               name: s.name,
               studentId: s.id,
+              className: s.className,
               score: s.totalScore,
               correctCount: s.correctCount,
               totalAnswered: s.totalAnswered
             }));
+          
+          // 按班级分类统计
+          const classStats = {};
+          scores.forEach(s => {
+            const className = s.className || '未填写';
+            if (!classStats[className]) {
+              classStats[className] = {
+                className: className,
+                studentCount: 0,
+                totalScore: 0,
+                avgScore: 0,
+                maxScore: 0,
+                minScore: 9999,
+                students: []
+              };
+            }
+            classStats[className].studentCount++;
+            classStats[className].totalScore += s.totalScore;
+            classStats[className].students.push({
+              name: s.name,
+              studentId: s.id,
+              score: s.totalScore,
+              correctCount: s.correctCount
+            });
+            if (s.totalScore > classStats[className].maxScore) {
+              classStats[className].maxScore = s.totalScore;
+            }
+            if (s.totalScore < classStats[className].minScore) {
+              classStats[className].minScore = s.totalScore;
+            }
+          });
+          
+          // 计算班级平均分
+          Object.values(classStats).forEach(stat => {
+            stat.avgScore = (stat.totalScore / stat.studentCount).toFixed(1);
+            // 按分数排序
+            stat.students.sort((a, b) => b.score - a.score);
+          });
           
           res.json({
             exam,
@@ -929,6 +1054,7 @@ app.get('/api/exams/:id/statistics', (req, res) => {
             maxScore,
             minScore,
             ranking,
+            classStats: Object.values(classStats),
             questionStats: Object.values(questionStats),
             totalQuestions: questions.length
           });
@@ -1211,14 +1337,17 @@ app.post('/api/papers/:id/import-to-exam', async (req, res) => {
       });
     });
     
-    // 创建新考试
+    // 创建新考试 - 添加时间戳到名称，避免重名
     const examId = uuidv4();
     const grade = paper.examType === '高考' ? '高中三年级' : '初中三年级';
-    
+    const now = new Date();
+    const timestamp = `${now.getMonth() + 1}月${now.getDate()}日 ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const examTitle = `${paper.title} (${timestamp})`;
+
     db.run(
-      `INSERT INTO exams (id, title, subject, grade, difficulty, question_count, time_limit) 
+      `INSERT INTO exams (id, title, subject, grade, difficulty, question_count, time_limit)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [examId, paper.title, paper.subject, grade, 'medium', questions.length, 120],
+      [examId, examTitle, paper.subject, grade, 'medium', questions.length, 120],
       function(err) {
         if (err) {
           res.status(500).json({ error: err.message });
@@ -1757,19 +1886,20 @@ app.post('/api/papers/save-parsed', async (req, res) => {
 
 // 教师注册
 app.post('/api/teacher/register', async (req, res) => {
-  const { username, password, name, subject } = req.body;
-  
-  if (!username || !password || !name || !subject) {
+  const { username, password, name, subject, classes } = req.body;
+
+  if (!username || !password || !name || !subject || !classes) {
     res.status(400).json({ error: '请填写所有必填项' });
     return;
   }
-  
+
   try {
     const teacherId = uuidv4();
-    
+    const classesStr = Array.isArray(classes) ? JSON.stringify(classes) : classes;
+
     db.run(
-      `INSERT INTO teachers (id, username, password, name, subject) VALUES (?, ?, ?, ?, ?)`,
-      [teacherId, username, password, name, subject],
+      `INSERT INTO teachers (id, username, password, name, subject, classes) VALUES (?, ?, ?, ?, ?, ?)`,
+      [teacherId, username, password, name, subject, classesStr],
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
@@ -1791,14 +1921,14 @@ app.post('/api/teacher/register', async (req, res) => {
 // 教师登录
 app.post('/api/teacher/login', (req, res) => {
   const { username, password } = req.body;
-  
+
   if (!username || !password) {
     res.status(400).json({ error: '请输入用户名和密码' });
     return;
   }
-  
+
   db.get(
-    `SELECT id, username, name, subject FROM teachers WHERE username = ? AND password = ?`,
+    `SELECT id, username, name, subject, classes FROM teachers WHERE username = ? AND password = ?`,
     [username, password],
     (err, row) => {
       if (err) {
@@ -1914,6 +2044,9 @@ app.post('/api/teacher/task/:id/grade', (req, res) => {
           );
         }
         
+        // 检查该考试的所有批改任务是否都已完成
+        checkAndUpdateGradingStatus(task.exam_id);
+        
         res.json({ success: true, message: '批改完成' });
       }
     );
@@ -1941,6 +2074,84 @@ app.get('/api/teacher/:id/stats', (req, res) => {
   );
 });
 
+// 检查并更新阅卷状态
+function checkAndUpdateGradingStatus(examId) {
+  console.log(`检查考试 ${examId} 的阅卷状态`);
+  
+  // 获取该考试的所有批改任务
+  db.all(
+    `SELECT status FROM teacher_tasks WHERE exam_id = ?`,
+    [examId],
+    (err, tasks) => {
+      if (err) {
+        console.error('获取批改任务失败:', err);
+        return;
+      }
+      
+      if (tasks.length === 0) {
+        console.log(`考试 ${examId} 没有需要批改的任务`);
+        // 没有主观题需要批改，直接标记为完成
+        db.run(`UPDATE exams SET grading_status = 'completed' WHERE id = ?`, [examId]);
+        return;
+      }
+      
+      // 检查是否所有任务都已完成
+      const allGraded = tasks.every(t => t.status === 'graded');
+      const pendingCount = tasks.filter(t => t.status === 'pending').length;
+      
+      console.log(`考试 ${examId} 阅卷进度: ${tasks.length - pendingCount}/${tasks.length}`);
+      
+      if (allGraded) {
+        console.log(`考试 ${examId} 所有主观题批改完成！`);
+        db.run(
+          `UPDATE exams SET grading_status = 'completed' WHERE id = ?`,
+          [examId],
+          (err) => {
+            if (err) {
+              console.error('更新阅卷状态失败:', err);
+            } else {
+              console.log(`考试 ${examId} 阅卷状态已更新为 completed`);
+            }
+          }
+        );
+      } else {
+        // 更新为阅卷中状态
+        db.run(
+          `UPDATE exams SET grading_status = 'grading' WHERE id = ? AND grading_status = 'pending'`,
+          [examId]
+        );
+      }
+    }
+  );
+}
+
+// 获取考试阅卷进度
+app.get('/api/exams/:id/grading-progress', (req, res) => {
+  const examId = req.params.id;
+  
+  db.all(
+    `SELECT status FROM teacher_tasks WHERE exam_id = ?`,
+    [examId],
+    (err, tasks) => {
+      if (err) {
+        res.status(500).json({ error: '获取进度失败' });
+        return;
+      }
+      
+      const total = tasks.length;
+      const completed = tasks.filter(t => t.status === 'graded').length;
+      const pending = total - completed;
+      
+      res.json({
+        total,
+        completed,
+        pending,
+        isComplete: total > 0 && pending === 0
+      });
+    }
+  );
+});
+
 // ===== Socket.io 连接处理 =====
 io.on('connection', (socket) => {
   console.log('客户端已连接:', socket.id);
@@ -1956,6 +2167,8 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`服务器运行在端口 ${PORT}`);
+  console.log(`本地访问: http://localhost:${PORT}`);
+  console.log(`局域网访问: http://0.0.0.0:${PORT}`);
 });

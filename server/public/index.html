@@ -258,6 +258,41 @@
                             <option value="政治">政治</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label>所教班级（可多选）</label>
+                        <div id="teacher-reg-classes" style="margin-top: 8px;">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #1890ff;">高一</strong>
+                                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px;">
+                                    ${[1,2,3,4,5,6,7,8,9,10,11,12].map(i => `
+                                        <label style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" value="高一${i}班" style="width: auto; margin-right: 4px;"> ${i}班
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #52c41a;">高二</strong>
+                                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px;">
+                                    ${[1,2,3,4,5,6,7,8,9,10,11,12].map(i => `
+                                        <label style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" value="高二${i}班" style="width: auto; margin-right: 4px;"> ${i}班
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            <div>
+                                <strong style="color: #faad14;">高三</strong>
+                                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 6px;">
+                                    ${[1,2,3,4,5,6,7,8,9,10,11,12].map(i => `
+                                        <label style="display: flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" value="高三${i}班" style="width: auto; margin-right: 4px;"> ${i}班
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <button class="btn btn-success" onclick="teacherRegister()" style="width: 100%;">注册</button>
                     <p style="text-align: center; margin: 16px 0;">已有账号？<a href="#" onclick="showTeacherLoginForm()" style="color: #1890ff;">立即登录</a></p>
                 </div>
@@ -271,6 +306,7 @@
                 <h2>教师控制台</h2>
                 <div id="teacher-info" style="margin-bottom: 16px; padding: 12px; background: #f6ffed; border-radius: 8px;">
                     <span id="teacher-name-display"></span> | 科目：<span id="teacher-subject-display" style="color: #1890ff; font-weight: bold;"></span>
+                    <div id="teacher-classes-display" style="margin-top: 8px; color: #666;"></div>
                     <span id="teacher-task-stats" style="margin-left: 20px; color: #ff4d4f; font-size: 14px;"></span>
                 </div>
                 <button class="btn" onclick="showCreateExam()">创建新考试</button>
@@ -278,6 +314,7 @@
                 <button class="btn btn-warning" onclick="showTeacherTasks()">📝 我的批改任务</button>
                 <button class="btn" onclick="teacherLogout()">退出登录</button>
                 <button class="btn btn-danger" onclick="clearAllData()" style="margin-left: 20px;">🗑️ 清除所有数据</button>
+                <button class="btn btn-success" onclick="showSearchExamModal()" style="margin-left: 20px;">🔍 查找考试</button>
             </div>
             <div id="exam-list"></div>
         </div>
@@ -800,6 +837,10 @@
                     <label>学号</label>
                     <input type="text" id="student-id-input" placeholder="请输入学号">
                 </div>
+                <div class="form-group">
+                    <label>班级</label>
+                    <input type="text" id="student-class-input" placeholder="请输入班级（如：高一1班）">
+                </div>
                 <div id="join-exam-info" style="margin-bottom: 16px; padding: 12px; background: #f5f5f5; border-radius: 8px;"></div>
                 <button class="btn btn-success" onclick="confirmJoinExam()">开始答题</button>
                 <button class="btn" onclick="closeStudentModal()">取消</button>
@@ -812,6 +853,50 @@
                 <h2>考试统计详情</h2>
                 <div id="exam-stats-content"></div>
                 <button class="btn" onclick="closeExamStatsModal()" style="margin-top: 20px;">关闭</button>
+            </div>
+        </div>
+
+        <!-- 查找考试模态框 -->
+        <div id="search-exam-modal" class="modal hidden">
+            <div class="card" style="max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto;">
+                <h2>🔍 查找考试</h2>
+                <div style="margin: 20px 0;">
+                    <div class="form-group">
+                        <label>输入考试名称或ID</label>
+                        <input type="text" id="exam-search-input" placeholder="例如：高一数学综合测试卷 或 b7e8edf1..." style="width: 100%;">
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button class="btn btn-success" onclick="searchExams()">搜索</button>
+                        <button class="btn" onclick="clearExamSearch()">清除</button>
+                        <button class="btn" onclick="closeSearchExamModal()">关闭</button>
+                    </div>
+                </div>
+                <div id="search-exam-results" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- 选择考试班级模态框 -->
+        <div id="select-exam-class-modal" class="modal hidden">
+            <div class="card" style="max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h2>📋 选择考试班级</h2>
+                <p style="color: #666; margin: 10px 0;">请选择参加本次考试的班级（可多选）：</p>
+                <div id="exam-class-options" style="margin: 20px 0;">
+                    <!-- 动态生成班级选项 -->
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="confirmStartExamWithClass()">确定开始考试</button>
+                    <button class="btn" onclick="closeSelectExamClassModal()">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 查看学生原卷模态框 -->
+        <div id="student-paper-modal" class="modal hidden">
+            <div class="card" style="max-width: 1000px; width: 95%; max-height: 90vh; overflow-y: auto;">
+                <h2>📄 学生原卷</h2>
+                <div id="student-paper-info" style="margin-bottom: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px;"></div>
+                <div id="student-paper-content"></div>
+                <button class="btn" onclick="closeStudentPaperModal()" style="margin-top: 20px;">关闭</button>
             </div>
         </div>
 
@@ -835,7 +920,8 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3001/api';
+        // 动态获取API地址（支持本地和局域网访问）
+        const API_URL = `http://${window.location.hostname}:3001/api`;
         let currentExam = null;
         let currentQuestions = [];
         let currentAnswers = {};
@@ -915,19 +1001,28 @@
             const password = document.getElementById('teacher-reg-password').value;
             const name = document.getElementById('teacher-reg-name').value.trim();
             const subject = document.getElementById('teacher-reg-subject').value;
-            
+
+            // 获取选中的班级
+            const classCheckboxes = document.querySelectorAll('#teacher-reg-classes input[type="checkbox"]:checked');
+            const classes = Array.from(classCheckboxes).map(cb => cb.value);
+
             if (!username || !password || !name || !subject) {
                 alert('请填写所有必填项');
                 return;
             }
-            
+
+            if (classes.length === 0) {
+                alert('请至少选择一个所教班级');
+                return;
+            }
+
             try {
                 const response = await fetch(`${API_URL}/teacher/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password, name, subject })
+                    body: JSON.stringify({ username, password, name, subject, classes })
                 });
-                
+
                 const data = await response.json();
                 if (data.success) {
                     alert('注册成功，请登录');
@@ -937,6 +1032,7 @@
                     document.getElementById('teacher-reg-password').value = '';
                     document.getElementById('teacher-reg-name').value = '';
                     document.getElementById('teacher-reg-subject').value = '';
+                    document.querySelectorAll('#teacher-reg-classes input[type="checkbox"]').forEach(cb => cb.checked = false);
                 } else {
                     alert(data.error || '注册失败');
                 }
@@ -960,6 +1056,28 @@
             if (currentTeacher) {
                 document.getElementById('teacher-name-display').textContent = currentTeacher.name + '老师';
                 document.getElementById('teacher-subject-display').textContent = currentTeacher.subject;
+
+                // 显示所教班级（兼容旧格式）
+                let classesDisplay = '';
+                if (currentTeacher.classes) {
+                    let teacherClasses = [];
+                    try {
+                        teacherClasses = JSON.parse(currentTeacher.classes);
+                    } catch (e) {
+                        teacherClasses = currentTeacher.classes.split(',').map(c => c.trim());
+                    }
+                    // 转换旧格式（如"1班"）为新格式（如"高一1班"）用于显示
+                    const displayClasses = teacherClasses.map(cls => {
+                        if (cls.startsWith('高一') || cls.startsWith('高二') || cls.startsWith('高三')) {
+                            return cls;
+                        } else {
+                            return '高一' + cls; // 旧格式默认显示为高一
+                        }
+                    });
+                    classesDisplay = '📚 所教班级：' + displayClasses.join('、');
+                }
+                document.getElementById('teacher-classes-display').textContent = classesDisplay;
+
                 // 加载任务统计
                 loadTeacherTaskStats();
             }
@@ -1308,40 +1426,160 @@
             try {
                 const response = await fetch(`${API_URL}/exams`);
                 const exams = await response.json();
-                
-                // 只显示当前教师科目的考试
-                let filteredExams = exams;
-                if (currentTeacher && currentTeacher.subject) {
-                    filteredExams = exams.filter(exam => exam.subject === currentTeacher.subject);
-                }
-                
-                const listDiv = document.getElementById('exam-list');
-                if (filteredExams.length === 0) {
-                    listDiv.innerHTML = `
-                        <div class="card">
-                            <p>暂无${currentTeacher ? currentTeacher.subject : ''}科目的考试</p>
-                            <p style="color: #999; font-size: 14px;">点击"创建新考试"按钮添加考试</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                listDiv.innerHTML = filteredExams.map(exam => `
-                    <div class="exam-item">
-                        <h3>${exam.title}</h3>
-                        <p>科目：${exam.subject} | 年级：${exam.grade} | 难度：${exam.difficulty}</p>
-                        <p>题目数：${exam.question_count} | 时长：${exam.time_limit}分钟</p>
-                        <p>状态：<span class="status-${exam.status}">${exam.status === 'pending' ? '待开始' : exam.status === 'active' ? '进行中' : '已结束'}</span></p>
-                        ${exam.status === 'pending' ? `<button class="btn btn-success" onclick="startExam('${exam.id}')">开始考试</button>` : ''}
-                        ${exam.status === 'active' ? `<button class="btn btn-danger" onclick="endExam('${exam.id}')">结束考试</button>` : ''}
-                        ${exam.status === 'ended' ? `
-                            <button class="btn" onclick="showExamStats('${exam.id}')">查看详情</button>
-                        ` : ''}
-                    </div>
-                `).join('');
+                renderExamList(exams);
             } catch (error) {
                 console.error('加载失败:', error);
             }
+        }
+
+        // 渲染考试列表
+        function renderExamList(exams) {
+            // 只显示当前教师科目的考试
+            let filteredExams = exams;
+            if (currentTeacher && currentTeacher.subject) {
+                filteredExams = exams.filter(exam => exam.subject === currentTeacher.subject);
+            }
+
+            // 如果教师有所教班级，只显示对应班级的考试
+            if (currentTeacher && currentTeacher.classes) {
+                let teacherClasses = [];
+                try {
+                    teacherClasses = JSON.parse(currentTeacher.classes);
+                } catch (e) {
+                    teacherClasses = currentTeacher.classes.split(',').map(c => c.trim());
+                }
+
+                console.log('教师所教班级:', teacherClasses);
+                console.log('过滤前考试数量:', filteredExams.length);
+
+                // 过滤：只显示没有指定班级或班级在教师所教班级列表中的考试
+                filteredExams = filteredExams.filter(exam => {
+                    if (!exam.exam_class) {
+                        console.log('考试无班级限制:', exam.title);
+                        return true; // 没有指定班级的考试，所有教师都能看到
+                    }
+                    
+                    // 解析考试班级（支持多个班级，用"、"分隔）
+                    const examClasses = exam.exam_class.split(/[、,]/).map(c => c.trim());
+                    console.log('考试班级:', exam.title, examClasses);
+                    
+                    // 检查是否有交集（教师所教班级和考试班级的交集）
+                    const hasMatch = examClasses.some(cls => teacherClasses.includes(cls));
+                    console.log('是否匹配:', hasMatch);
+                    return hasMatch;
+                });
+
+                console.log('过滤后考试数量:', filteredExams.length);
+            }
+
+            const listDiv = document.getElementById('exam-list');
+            if (filteredExams.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="card">
+                        <p>暂无${currentTeacher ? currentTeacher.subject : ''}科目的考试</p>
+                        <p style="color: #999; font-size: 14px;">点击"创建新考试"按钮添加考试</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listDiv.innerHTML = filteredExams.map(exam => `
+                <div class="exam-item">
+                    <h3>${exam.title}</h3>
+                    <p>科目：${exam.subject} | 年级：${exam.grade} | 考试ID：${exam.id}</p>
+                    ${exam.exam_class ? `<p style="color: #1890ff;">📋 考试班级：${exam.exam_class}</p>` : ''}
+                    <p>题目数：${exam.question_count} | 时长：${exam.time_limit}分钟</p>
+                    <p>状态：<span class="status-${exam.status}">${exam.status === 'pending' ? '待开始' : exam.status === 'active' ? '进行中' : '已结束'}</span></p>
+                    ${exam.status === 'pending' ? `<button class="btn btn-success" onclick="startExam('${exam.id}')">开始考试</button>` : ''}
+                    ${exam.status === 'active' ? `<button class="btn btn-danger" onclick="endExam('${exam.id}')">结束考试</button>` : ''}
+                    ${exam.status === 'ended' ? `
+                        <button class="btn" onclick="showExamStats('${exam.id}')">查看详情</button>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // 显示查找考试模态框
+        function showSearchExamModal() {
+            document.getElementById('search-exam-modal').classList.remove('hidden');
+            document.getElementById('exam-search-input').focus();
+        }
+
+        // 关闭查找考试模态框
+        function closeSearchExamModal() {
+            document.getElementById('search-exam-modal').classList.add('hidden');
+            document.getElementById('search-exam-results').innerHTML = '';
+            document.getElementById('exam-search-input').value = '';
+        }
+
+        // 搜索考试
+        async function searchExams() {
+            const searchTerm = document.getElementById('exam-search-input').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('search-exam-results');
+
+            if (!searchTerm) {
+                resultsDiv.innerHTML = `
+                    <div class="card" style="background: #fff2f0; border-left: 4px solid #ff4d4f;">
+                        <p>⚠️ 请输入搜索内容</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/exams`);
+                const exams = await response.json();
+
+                // 根据名称或ID搜索
+                const searchResults = exams.filter(exam => {
+                    const matchTitle = exam.title.toLowerCase().includes(searchTerm);
+                    const matchId = exam.id.toLowerCase().includes(searchTerm);
+                    return matchTitle || matchId;
+                });
+
+                // 显示搜索结果
+                if (searchResults.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="card" style="background: #fff7e6; border-left: 4px solid #faad14;">
+                            <p>未找到匹配的考试</p>
+                            <p style="color: #999; font-size: 14px;">搜索内容："${searchTerm}"</p>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="card" style="background: #e6f7ff; border-left: 4px solid #1890ff;">
+                            <p>🔍 搜索结果：找到 ${searchResults.length} 个匹配项</p>
+                        </div>
+                    ` + searchResults.map(exam => `
+                        <div class="exam-item" style="border-left: 4px solid #52c41a; margin-bottom: 12px;">
+                            <h4>${exam.title}</h4>
+                            <p>科目：${exam.subject} | 年级：${exam.grade}</p>
+                            <p>考试ID：${exam.id}</p>
+                            <p>题目数：${exam.question_count} | 时长：${exam.time_limit}分钟</p>
+                            <p>状态：<span class="status-${exam.status}">${exam.status === 'pending' ? '待开始' : exam.status === 'active' ? '进行中' : '已结束'}</span></p>
+                            ${exam.status === 'pending' ? `<button class="btn btn-success" onclick="startExam('${exam.id}'); closeSearchExamModal();">开始考试</button>` : ''}
+                            ${exam.status === 'active' ? `<button class="btn btn-danger" onclick="endExam('${exam.id}'); closeSearchExamModal();">结束考试</button>` : ''}
+                            ${exam.status === 'ended' ? `
+                                <button class="btn" onclick="showExamStats('${exam.id}'); closeSearchExamModal();">查看详情</button>
+                            ` : ''}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('搜索失败:', error);
+                resultsDiv.innerHTML = `
+                    <div class="card" style="background: #fff2f0; border-left: 4px solid #ff4d4f;">
+                        <p>搜索失败，请重试</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 清除搜索
+        function clearExamSearch() {
+            document.getElementById('exam-search-input').value = '';
+            document.getElementById('search-exam-results').innerHTML = '';
+            document.getElementById('exam-search-input').focus();
         }
 
         // 加载进行中的考试
@@ -1370,15 +1608,135 @@
             }
         }
 
-        // 开始/结束考试
-        async function startExam(id) {
+        // 待开始的考试ID和选中的班级
+        let pendingStartExamId = null;
+
+        // 开始考试 - 先选择班级
+        function startExam(id) {
+            pendingStartExamId = id;
+
+            // 获取教师所教班级
+            if (!currentTeacher || !currentTeacher.classes) {
+                alert('无法获取教师班级信息');
+                return;
+            }
+
+            let teacherClasses = [];
             try {
-                await fetch(`${API_URL}/exams/${id}/start`, { method: 'POST' });
-                alert('考试已开始');
-                loadExamList();
+                teacherClasses = JSON.parse(currentTeacher.classes);
+            } catch (e) {
+                teacherClasses = currentTeacher.classes.split(',').map(c => c.trim());
+            }
+
+            if (teacherClasses.length === 0) {
+                alert('您没有设置所教班级，请联系管理员');
+                return;
+            }
+
+            // 显示班级选择模态框 - 按年级分组显示
+            const classOptionsDiv = document.getElementById('exam-class-options');
+
+            // 按年级分组
+            const gradeGroups = {
+                '高一': [],
+                '高二': [],
+                '高三': []
+            };
+
+            // 处理班级数据（兼容旧格式如"1班"和新格式如"高一1班"）
+            teacherClasses.forEach(cls => {
+                if (cls.startsWith('高一')) gradeGroups['高一'].push(cls);
+                else if (cls.startsWith('高二')) gradeGroups['高二'].push(cls);
+                else if (cls.startsWith('高三')) gradeGroups['高三'].push(cls);
+                else {
+                    // 旧格式（如"1班"），默认归入高一
+                    gradeGroups['高一'].push('高一' + cls);
+                }
+            });
+
+            const gradeColors = {
+                '高一': '#1890ff',
+                '高二': '#52c41a',
+                '高三': '#faad14'
+            };
+
+            let html = '';
+            Object.keys(gradeGroups).forEach(grade => {
+                if (gradeGroups[grade].length > 0) {
+                    html += `
+                        <div style="margin-bottom: 16px;">
+                            <strong style="color: ${gradeColors[grade]};">${grade}</strong>
+                            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px;">
+                                ${gradeGroups[grade].map(cls => `
+                                    <label style="display: flex; align-items: center; padding: 8px; background: #f5f5f5; border-radius: 6px; cursor: pointer;">
+                                        <input type="checkbox" name="exam-class" value="${cls}" style="width: auto; margin-right: 6px;">
+                                        <span style="font-size: 14px;">${cls.replace(grade, '')}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            // 添加全选按钮
+            html += `
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8e8e8;">
+                    <button class="btn" onclick="selectAllExamClasses()" style="margin-right: 8px;">全选</button>
+                    <button class="btn" onclick="clearAllExamClasses()">清空</button>
+                </div>
+            `;
+
+            classOptionsDiv.innerHTML = html;
+            document.getElementById('select-exam-class-modal').classList.remove('hidden');
+        }
+
+        // 全选考试班级
+        function selectAllExamClasses() {
+            document.querySelectorAll('input[name="exam-class"]').forEach(cb => cb.checked = true);
+        }
+
+        // 清空考试班级选择
+        function clearAllExamClasses() {
+            document.querySelectorAll('input[name="exam-class"]').forEach(cb => cb.checked = false);
+        }
+
+        // 确认开始考试（带班级）
+        async function confirmStartExamWithClass() {
+            const selectedClasses = document.querySelectorAll('input[name="exam-class"]:checked');
+
+            if (selectedClasses.length === 0) {
+                alert('请至少选择一个班级');
+                return;
+            }
+
+            const examClasses = Array.from(selectedClasses).map(cb => cb.value);
+            const examClassStr = examClasses.join('、');
+
+            try {
+                const response = await fetch(`${API_URL}/exams/${pendingStartExamId}/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ examClass: examClassStr })
+                });
+
+                if (response.ok) {
+                    alert(`考试已开始\n考试班级：${examClassStr}`);
+                    closeSelectExamClassModal();
+                    loadExamList();
+                } else {
+                    alert('操作失败');
+                }
             } catch (error) {
+                console.error('开始考试失败:', error);
                 alert('操作失败');
             }
+        }
+
+        // 关闭选择班级模态框
+        function closeSelectExamClassModal() {
+            document.getElementById('select-exam-class-modal').classList.add('hidden');
+            pendingStartExamId = null;
         }
 
         async function endExam(id) {
@@ -1392,24 +1750,70 @@
             }
         }
 
-        // 当前要加入的考试ID
+        // 当前要加入的考试ID和考试班级
         let pendingExamId = null;
+        let pendingExamClass = null;
 
         // 加入考试
-        function joinExam(examId, title) {
+        async function joinExam(examId, title) {
             pendingExamId = examId;
-            document.getElementById('join-exam-info').innerHTML = `<p><strong>考试：</strong>${title}</p>`;
+
+            // 获取考试信息，包括考试班级
+            try {
+                const response = await fetch(`${API_URL}/exams/${examId}`);
+                const examData = await response.json();
+                pendingExamClass = examData.exam_class;
+
+                let examInfoHtml = `<p><strong>考试：</strong>${title}</p>`;
+                if (pendingExamClass) {
+                    examInfoHtml += `<p style="color: #1890ff; margin-top: 8px;"><strong>考试班级：</strong>${pendingExamClass}</p>`;
+                    examInfoHtml += `<p style="color: #ff4d4f; font-size: 12px; margin-top: 4px;">⚠️ 只有${pendingExamClass}的学生可以参加</p>`;
+                }
+                document.getElementById('join-exam-info').innerHTML = examInfoHtml;
+            } catch (error) {
+                document.getElementById('join-exam-info').innerHTML = `<p><strong>考试：</strong>${title}</p>`;
+            }
+
             document.getElementById('student-info-modal').classList.remove('hidden');
         }
 
         function closeStudentModal() {
             document.getElementById('student-info-modal').classList.add('hidden');
             pendingExamId = null;
+            pendingExamClass = null;
         }
 
         // 显示考试统计详情
         async function showExamStats(examId) {
             try {
+                // 先检查阅卷状态
+                const progressResponse = await fetch(`${API_URL}/exams/${examId}/grading-progress`);
+                const progressData = await progressResponse.json();
+                
+                if (!progressData.isComplete && progressData.total > 0) {
+                    // 阅卷未完成，显示提示
+                    const contentDiv = document.getElementById('exam-stats-content');
+                    contentDiv.innerHTML = `
+                        <div class="card" style="text-align: center; padding: 40px; background: #fff7e6;">
+                            <h2 style="color: #faad14; margin-bottom: 20px;">⏳ 阅卷工作正在进行中</h2>
+                            <p style="font-size: 18px; margin-bottom: 20px;">请稍后再试，等待所有教师完成主观题批改</p>
+                            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                <h3 style="margin-bottom: 16px;">阅卷进度</h3>
+                                <div style="font-size: 48px; color: #1890ff; margin-bottom: 10px;">
+                                    ${progressData.completed} <span style="font-size: 24px; color: #999;">/ ${progressData.total}</span>
+                                </div>
+                                <div style="width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden;">
+                                    <div style="width: ${(progressData.completed / progressData.total * 100)}%; height: 100%; background: #52c41a; transition: width 0.3s;"></div>
+                                </div>
+                                <p style="margin-top: 10px; color: #666;">已完成 ${(progressData.completed / progressData.total * 100).toFixed(1)}%</p>
+                            </div>
+                            <p style="color: #999; font-size: 14px;">还剩 ${progressData.pending} 道题待批改</p>
+                        </div>
+                    `;
+                    document.getElementById('exam-stats-modal').classList.remove('hidden');
+                    return;
+                }
+                
                 const response = await fetch(`${API_URL}/exams/${examId}/statistics`);
                 const data = await response.json();
                 
@@ -1439,15 +1843,78 @@
                         </div>
                     </div>
                     
-                    <h3>成绩排名</h3>
+                    <h3>📊 班级统计</h3>
+                    ${data.classStats && data.classStats.length > 0 ? `
+                        <div style="margin-bottom: 24px;">
+                            ${data.classStats.map((cls, idx) => `
+                                <div class="card" style="margin-bottom: 16px; border-left: 4px solid ${['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1'][idx % 5]};">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <h4 style="margin: 0; color: ${['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1'][idx % 5]};">${cls.className}</h4>
+                                        <span style="background: #f0f0f0; padding: 4px 12px; border-radius: 12px; font-size: 14px;">${cls.studentCount}人</span>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 12px;">
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #1890ff;">${cls.avgScore}</div>
+                                            <div style="font-size: 12px; color: #999;">平均分</div>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #52c41a;">${cls.maxScore}</div>
+                                            <div style="font-size: 12px; color: #999;">最高分</div>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #faad14;">${cls.minScore === 9999 ? 0 : cls.minScore}</div>
+                                            <div style="font-size: 12px; color: #999;">最低分</div>
+                                        </div>
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 24px; font-weight: bold; color: #ff4d4f;">${cls.students && cls.students.length > 0 ? cls.students[0].score : 0}</div>
+                                            <div style="font-size: 12px; color: #999;">班级第一</div>
+                                        </div>
+                                    </div>
+                                    <details style="margin-top: 12px;">
+                                        <summary style="cursor: pointer; color: #1890ff; font-size: 14px;">查看班级学生名单 (${cls.students ? cls.students.length : 0}人)</summary>
+                                        <div style="margin-top: 12px; max-height: 200px; overflow-y: auto;">
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                                                <thead>
+                                                    <tr style="background: #f5f5f5;">
+                                                        <th style="padding: 8px; border: 1px solid #e8e8e8;">班级排名</th>
+                                                        <th style="padding: 8px; border: 1px solid #e8e8e8;">姓名</th>
+                                                        <th style="padding: 8px; border: 1px solid #e8e8e8;">学号</th>
+                                                        <th style="padding: 8px; border: 1px solid #e8e8e8;">得分</th>
+                                                        <th style="padding: 8px; border: 1px solid #e8e8e8;">操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    ${cls.students ? cls.students.map((s, i) => `
+                                                        <tr>
+                                                            <td style="padding: 8px; border: 1px solid #e8e8e8; text-align: center;">${i + 1}</td>
+                                                            <td style="padding: 8px; border: 1px solid #e8e8e8;">${s.name}</td>
+                                                            <td style="padding: 8px; border: 1px solid #e8e8e8;">${s.studentId}</td>
+                                                            <td style="padding: 8px; border: 1px solid #e8e8e8; text-align: center; font-weight: bold; color: ${s.score >= 80 ? '#52c41a' : s.score >= 60 ? '#faad14' : '#ff4d4f'};">${s.score}</td>
+                                                            <td style="padding: 8px; border: 1px solid #e8e8e8; text-align: center;">
+                                                                <button class="btn" style="padding: 4px 8px; font-size: 12px;" onclick="viewStudentPaper('${examId}', '${s.studentId}', '${s.name}')">📄 原卷</button>
+                                                            </td>
+                                                        </tr>
+                                                    `).join('') : ''}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p style="color: #999; margin-bottom: 24px;">暂无班级数据</p>'}
+                    
+                    <h3>🏆 总成绩排名</h3>
                     <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
                         <thead>
                             <tr style="background: #f5f5f5;">
                                 <th style="padding: 12px; border: 1px solid #e8e8e8;">排名</th>
                                 <th style="padding: 12px; border: 1px solid #e8e8e8;">姓名</th>
                                 <th style="padding: 12px; border: 1px solid #e8e8e8;">学号</th>
+                                <th style="padding: 12px; border: 1px solid #e8e8e8;">班级</th>
                                 <th style="padding: 12px; border: 1px solid #e8e8e8;">得分</th>
                                 <th style="padding: 12px; border: 1px solid #e8e8e8;">正确题数</th>
+                                <th style="padding: 12px; border: 1px solid #e8e8e8;">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1458,8 +1925,12 @@
                                     </td>
                                     <td style="padding: 12px; border: 1px solid #e8e8e8;">${s.name}</td>
                                     <td style="padding: 12px; border: 1px solid #e8e8e8;">${s.studentId}</td>
+                                    <td style="padding: 12px; border: 1px solid #e8e8e8;">${s.className || '-'}</td>
                                     <td style="padding: 12px; border: 1px solid #e8e8e8; text-align: center; font-weight: bold; color: ${s.score >= 80 ? '#52c41a' : s.score >= 60 ? '#faad14' : '#ff4d4f'};">${s.score}</td>
                                     <td style="padding: 12px; border: 1px solid #e8e8e8; text-align: center;">${s.correctCount}/${s.totalAnswered}</td>
+                                    <td style="padding: 12px; border: 1px solid #e8e8e8; text-align: center;">
+                                        <button class="btn" onclick="viewStudentPaper('${examId}', '${s.studentId}', '${s.name}')">📄 查看原卷</button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1507,6 +1978,98 @@
             document.getElementById('exam-stats-modal').classList.add('hidden');
         }
 
+        // 查看学生原卷
+        async function viewStudentPaper(examId, studentId, studentName) {
+            try {
+                // 获取学生答案详情
+                const response = await fetch(`${API_URL}/exams/${examId}/student-answers/${studentId}`);
+                const answers = await response.json();
+                
+                if (!answers || answers.length === 0) {
+                    alert('未找到该学生的答题记录');
+                    return;
+                }
+                
+                // 计算总分
+                let totalScore = 0;
+                let fullScore = 0;
+                answers.forEach(a => {
+                    if (a.score !== null && a.score !== undefined) {
+                        totalScore += a.score;
+                    }
+                    fullScore += a.full_score || 0;
+                });
+                
+                // 显示学生信息
+                document.getElementById('student-paper-info').innerHTML = `
+                    <h3>学生：${studentName} (${studentId})</h3>
+                    <p style="font-size: 18px; margin-top: 10px;">
+                        <strong>总分：${totalScore}/${fullScore}分</strong>
+                        <span style="color: ${totalScore >= fullScore * 0.8 ? '#52c41a' : totalScore >= fullScore * 0.6 ? '#faad14' : '#ff4d4f'}; margin-left: 10px;">
+                            (${(totalScore / fullScore * 100).toFixed(1)}%)
+                        </span>
+                    </p>
+                `;
+                
+                // 显示答题详情
+                const contentDiv = document.getElementById('student-paper-content');
+                contentDiv.innerHTML = answers.map((a, index) => {
+                    const typeName = a.type === 'choice' ? '选择题' : 
+                                    a.type === 'truefalse' ? '判断题' : 
+                                    a.type === 'fillblank' ? '填空题' : 
+                                    a.type === 'reading' ? '📖 阅读理解题' : '解答题';
+                    
+                    const isCorrect = a.score === a.full_score;
+                    const isPartial = a.score > 0 && a.score < a.full_score;
+                    const statusColor = isCorrect ? '#52c41a' : isPartial ? '#faad14' : '#ff4d4f';
+                    const statusText = isCorrect ? '✅ 正确' : isPartial ? '⚠️ 部分正确' : '❌ 错误';
+                    
+                    return `
+                        <div class="question-item" style="border-left: 4px solid ${statusColor}; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <strong>第${index + 1}题 【${typeName}】</strong>
+                                <span style="color: ${statusColor}; font-weight: bold;">
+                                    ${statusText} (${a.score !== null ? a.score : 0}/${a.full_score}分)
+                                </span>
+                            </div>
+                            <div style="background: #f9f9f9; padding: 12px; border-radius: 6px; margin-bottom: 10px;">
+                                <p><strong>题目：</strong>${a.content}</p>
+                                ${a.options && a.options.length > 0 ? `
+                                    <p style="margin-top: 8px;"><strong>选项：</strong>${Array.isArray(a.options) ? a.options.join(' | ') : a.options}</p>
+                                ` : ''}
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div style="background: #e6f7ff; padding: 10px; border-radius: 6px;">
+                                    <p style="color: #1890ff; font-weight: bold;">学生答案</p>
+                                    <p>${a.answer || '未作答'}</p>
+                                </div>
+                                <div style="background: #f6ffed; padding: 10px; border-radius: 6px;">
+                                    <p style="color: #52c41a; font-weight: bold;">正确答案</p>
+                                    <p>${a.correct_answer || '见解析'}</p>
+                                </div>
+                            </div>
+                            ${a.teacher_comment ? `
+                                <div style="background: #fff7e6; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                    <p style="color: #faad14; font-weight: bold;">教师评语</p>
+                                    <p>${a.teacher_comment}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('student-paper-modal').classList.remove('hidden');
+            } catch (error) {
+                console.error('加载学生原卷失败:', error);
+                alert('加载失败，请重试');
+            }
+        }
+
+        // 关闭学生原卷模态框
+        function closeStudentPaperModal() {
+            document.getElementById('student-paper-modal').classList.add('hidden');
+        }
+
         // 清除所有数据
         async function clearAllData() {
             if (!confirm('⚠️ 警告：此操作将删除所有考试、题目和学生答题记录！\n\n确定要清除所有数据吗？')) {
@@ -1538,20 +2101,38 @@
         function confirmJoinExam() {
             const name = document.getElementById('student-name-input').value.trim();
             const id = document.getElementById('student-id-input').value.trim();
-            
-            if (!name || !id) {
-                alert('请填写姓名和学号');
+            const className = document.getElementById('student-class-input').value.trim();
+
+            if (!name || !id || !className) {
+                alert('请填写姓名、学号和班级');
                 return;
             }
-            
+
+            // 验证班级是否符合考试要求（支持多个班级，用"、"分隔）
+            if (pendingExamClass) {
+                // 标准化班级名称进行比较（去除空格，统一格式）
+                const normalizedInputClass = className.replace(/\s+/g, '');
+
+                // 解析考试班级（支持多个班级，用"、"或","分隔）
+                const examClasses = pendingExamClass.split(/[、,]/).map(c => c.trim().replace(/\s+/g, ''));
+
+                // 检查输入的班级是否在考试班级列表中
+                if (!examClasses.includes(normalizedInputClass)) {
+                    alert(`班级不匹配！\n\n您输入的班级：${className}\n考试指定班级：${pendingExamClass}\n\n只有以上班级的学生可以参加本次考试。`);
+                    return;
+                }
+            }
+
             studentInfo.name = name;
             studentInfo.id = id;
-            
+            studentInfo.className = className;
+
             document.getElementById('student-info-modal').classList.add('hidden');
-            
+
             if (pendingExamId) {
                 startTakingExam(pendingExamId);
                 pendingExamId = null;
+                pendingExamClass = null;
             }
         }
 
@@ -2798,24 +3379,27 @@
                     // 阅读理解题特殊处理
                     html = renderReadingQuestion(question, answer);
                 } else {
-                // 普通题目
-                html = `<div class="question-item"><h3>第${currentQuestionIndex+1}题</h3><p>${question.content}</p>`;
-                
-                if (question.type === 'choice') {
-                    html += question.options.map(opt => `
-                        <div class="option-item ${answer === opt.charAt(0) ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '${opt.charAt(0)}')">${opt}</div>
-                    `).join('');
-                } else if (question.type === 'truefalse') {
-                    html += `
-                        <div class="option-item ${answer === '正确' ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '正确')">正确</div>
-                        <div class="option-item ${answer === '错误' ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '错误')">错误</div>
-                    `;
-                } else {
-                    html += `<input type="text" placeholder="请输入答案" value="${answer || ''}" onchange="selectAnswer('${question.id}', this.value)">`;
+                    // 普通题目
+                    html = `<div class="question-item"><h3>第${currentQuestionIndex+1}题</h3><p>${question.content}</p>`;
+
+                    if (question.type === 'choice') {
+                        html += question.options.map(opt => {
+                            const optLetter = opt.charAt(0);
+                            const optText = opt.substring(2);
+                            const escapedText = optText.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            return `<div class="option-item ${answer === optLetter ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '${optLetter}')">${optLetter}. ${escapedText}</div>`;
+                        }).join('');
+                    } else if (question.type === 'truefalse') {
+                        html += `
+                            <div class="option-item ${answer === '正确' ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '正确')">正确</div>
+                            <div class="option-item ${answer === '错误' ? 'selected' : ''}" onclick="selectAnswer('${question.id}', '错误')">错误</div>
+                        `;
+                    } else {
+                        html += `<input type="text" placeholder="请输入答案" value="${answer || ''}" onchange="selectAnswer('${question.id}', this.value)">`;
+                    }
+
+                    html += '</div>';
                 }
-                
-                html += '</div>';
-            }
             
             container.innerHTML = html;
             
@@ -3037,6 +3621,7 @@
                         body: JSON.stringify({
                             studentName: studentInfo.name,
                             studentId: studentInfo.id,
+                            className: studentInfo.className,
                             questionId,
                             answer: finalAnswer
                         })
